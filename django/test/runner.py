@@ -415,9 +415,10 @@ def _init_worker(
     process_setup_args=None,
     debug_mode=None,
     used_aliases=None,
+    verbosity=1,
 ):
     """
-    Switch to databases dedicated to this worker.
+    Switch to databases dedicated to this worker and run system checks.
 
     This helper lives at module-level because of the multiprocessing module's
     requirements.
@@ -438,6 +439,7 @@ def _init_worker(
             process_setup(*process_setup_args)
         django.setup()
         setup_test_environment(debug=debug_mode)
+        call_command("check", verbosity=verbosity, databases=used_aliases)
 
     db_aliases = used_aliases if used_aliases is not None else connections
     for alias in db_aliases:
@@ -492,7 +494,13 @@ class ParallelTestSuite(unittest.TestSuite):
     runner_class = RemoteTestRunner
 
     def __init__(
-        self, subsuites, processes, failfast=False, debug_mode=False, buffer=False
+        self,
+        subsuites,
+        processes,
+        failfast=False,
+        debug_mode=False,
+        buffer=False,
+        verbosity=1,
     ):
         self.subsuites = subsuites
         self.processes = processes
@@ -502,6 +510,7 @@ class ParallelTestSuite(unittest.TestSuite):
         self.initial_settings = None
         self.serialized_contents = None
         self.used_aliases = None
+        self.verbosity = verbosity
         super().__init__()
 
     def run(self, result):
@@ -532,6 +541,7 @@ class ParallelTestSuite(unittest.TestSuite):
                 self.process_setup_args,
                 self.debug_mode,
                 self.used_aliases,
+                self.verbosity,
             ],
         )
         args = [
@@ -979,6 +989,7 @@ class DiscoverRunner:
                     self.failfast,
                     self.debug_mode,
                     self.buffer,
+                    self.verbosity,
                 )
         return suite
 
